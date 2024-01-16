@@ -52,31 +52,32 @@ def decision_boundary(F_data, T_data, clf, title='', ylabel='', xlabel=''):
     ax.set_title(title)
     plt.show()
     
-def get_all_metrics(X_test, y_test, y_pred, model, F_data, T_data):
+def get_all_metrics(X_test, y_test, y_pred, model, F_data, T_data, multiclass=False):
     cmatrix = confusion_matrix(y_test, y_pred)
     print('Confusion matrix:\n', cmatrix)
     plt.figure()
     sns.heatmap(cmatrix, annot=True, cmap='RdYlBu')
     plt.title('Matrice de Confusion')
-
-    proba = model.predict_proba(X_test)
-    FPR, TPR, THS = roc_curve(y_test, proba[:,1])
-    score = roc_auc_score(y_test, proba[:,1])
-    print(f'Roc Auc Score = {score}')
-
-    plt.figure()
-    plt.plot(FPR, TPR, label=f'AUC = {score:.2}')
-    plt.plot([x/100 for x in range(0,100)], [x/100 for x in range(0,100)],
-             '--', color='r')
-    plt.legend()
-    plt.title("Courbe ROC")
-    plt.ylabel('True Positive Rate')
-    plt.xlabel('False Positive Rate')
+    
+    if not multiclass:
+        proba = model.predict_proba(X_test)
+        FPR, TPR, THS = roc_curve(y_test, proba[:,1])
+        score = roc_auc_score(y_test, proba[:,1])
+        print(f'Roc Auc Score = {score}')
+    
+        plt.figure()
+        plt.plot(FPR, TPR, label=f'AUC = {score:.2}')
+        plt.plot([x/100 for x in range(0,100)], [x/100 for x in range(0,100)],
+                  '--', color='r')
+        plt.legend()
+        plt.title("Courbe ROC")
+        plt.ylabel('True Positive Rate')
+        plt.xlabel('False Positive Rate')
+        
+        decision_boundary(F_data, T_data, model, title='Frontière de décision')
     
     acc_score = accuracy_score(y_test, y_pred)
     print(f'Accuracy score = {acc_score}')
-    
-    decision_boundary(F_data, T_data, model, title='Frontière de décision')
 
 
 # =============================================================================
@@ -260,25 +261,27 @@ get_all_metrics(X_test, y_test, y_pred, clf, F_data, T_data)
 # =============================================================================
 
 data_all = fetch_openml(data_id=679, as_frame=True)
-data = data_all['data']
-target = data_all['target']
+data_df = data_all['data']
+target_df = data_all['target']
 f_names = data_all['feature_names']
+print("Target classes: ", target_df.unique())
 
-data_df = pd.DataFrame(data)
+data = data_df.to_numpy()
+target = target_df.to_numpy()
 pd.plotting.scatter_matrix(data_df)
 
 plt.figure()
 sns.heatmap(data_df.corr(), annot=True, cmap='RdYlBu')
 
-X_train, X_test, y_train, y_test = train_test_split(F_data, T_data, 
+X_train, X_test, y_train, y_test = train_test_split(data, target, 
                                                     test_size=0.2)
 
 # KNN
-model = KNeighborsClassifier(n_neighbors=5)
+model = KNeighborsClassifier(n_neighbors=11)
 model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 
-get_all_metrics(X_test, y_test, y_pred, model, F_data, T_data)
+get_all_metrics(X_test, y_test, y_pred, model, data, target, multiclass=True)
 
 
 # Naive Bayes
@@ -286,15 +289,15 @@ clf = GaussianNB()
 clf.fit(X_train, y_train)
 y_pred = clf.predict(X_test)
 
-get_all_metrics(X_test, y_test, y_pred, clf, F_data, T_data)
+get_all_metrics(X_test, y_test, y_pred, clf, data, target, multiclass=True)
 
 
 # SVM
-clf = svm.SVC(kernel='rbf', degree=5, probability=True)
+clf = svm.SVC(kernel='rbf', degree=7, probability=True)
 clf.fit(X_train, y_train)
 y_pred = clf.predict(X_test)
 
-get_all_metrics(X_test, y_test, y_pred, clf, F_data, T_data)
+get_all_metrics(X_test, y_test, y_pred, clf, data, target, multiclass=True)
 
 
 # DecisionTreeClassifier
@@ -304,7 +307,7 @@ y_pred = clf.predict(X_test)
 plt.figure()
 plot_tree(clf, fontsize=10)
 
-get_all_metrics(X_test, y_test, y_pred, clf, F_data, T_data)
+get_all_metrics(X_test, y_test, y_pred, clf, data, target, multiclass=True)
 
 
 # RandomForestClassifier
@@ -312,4 +315,4 @@ clf = RandomForestClassifier()
 clf.fit(X_train, y_train)
 y_pred = clf.predict(X_test)
 
-get_all_metrics(X_test, y_test, y_pred, clf, F_data, T_data)
+get_all_metrics(X_test, y_test, y_pred, clf, data, target, multiclass=True)
